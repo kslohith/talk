@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText mMessageEditText;
     private Button mSendButton;
     public static final int RC_SIGN_IN = 1;
-    public static final int RC_PHOTO_PICKER= 2;
+    public static final int RC_PHOTO_PICKER = 2;
 
     private String mUsername;
     FirebaseDatabase mfirebasedatabase;
@@ -78,10 +78,12 @@ public class MainActivity extends AppCompatActivity {
     FirebaseStorage mfirebasestorage;
     StorageReference mstoragereference;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         mfirebasedatabase = FirebaseDatabase.getInstance();
         mdatabasereference = mfirebasedatabase.getReference().child("messages");
         mfirebaseauth = FirebaseAuth.getInstance();
@@ -109,10 +111,10 @@ public class MainActivity extends AppCompatActivity {
         mPhotoPickerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                    Intent intent= new Intent(Intent.ACTION_GET_CONTENT);
-                    intent.setType("image/jpeg");
-                    intent.putExtra(Intent.EXTRA_LOCAL_ONLY,true);
-                     startActivityForResult(Intent.createChooser(intent,"Complete action using"),RC_PHOTO_PICKER);
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/jpeg");
+                intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+                startActivityForResult(Intent.createChooser(intent, "Complete action using"), RC_PHOTO_PICKER);
             }
         });
 
@@ -142,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // TODO: Send messages on click
-                FriendlyMessage friendlyMessage = new FriendlyMessage(mMessageEditText.getText().toString(),mUsername,null);
+                FriendlyMessage friendlyMessage = new FriendlyMessage(mMessageEditText.getText().toString(), mUsername, null);
                 mdatabasereference.push().setValue(friendlyMessage);
 
                 // Clear input box
@@ -155,15 +157,19 @@ public class MainActivity extends AppCompatActivity {
                 FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
                 mMessageAdapter.add(friendlyMessage);
             }
+
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String s) {
             }
+
             @Override
             public void onChildRemoved(DataSnapshot dataSnapshot) {
             }
+
             @Override
             public void onChildMoved(DataSnapshot dataSnapshot, String s) {
             }
+
             @Override
             public void onCancelled(DatabaseError databaseError) {
             }
@@ -173,12 +179,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser user = firebaseAuth.getCurrentUser();
-                if( user != null )
-                {
+                if (user != null) {
                     onSignedInInitialize(user.getDisplayName());
-                }
-                else
-                {   onSignedOutCleanup();
+                } else {
+                    onSignedOutCleanup();
                     startActivityForResult(
                             // Get an instance of AuthUI based on the default app
                             AuthUI.getInstance().createSignInIntentBuilder().build(),
@@ -188,110 +192,69 @@ public class MainActivity extends AppCompatActivity {
             }
         };
     }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.main_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch(item.getItemId()) {
-            case R.id.sign_out_menu:
-                AuthUI.getInstance().signOut(this);
-            default:
-                return super.onOptionsItemSelected(item);
-        }
-    }
-    @Override
-    public void onActivityResult( int requestcode, int resultcode, Intent data )
-    {
-        super.onActivityResult(requestcode,resultcode,data);
-        if( requestcode == RC_SIGN_IN ) {
-            if (resultcode == RESULT_OK) {
-                Toast.makeText(this, "Signed In", Toast.LENGTH_SHORT).show();
-            } else if (resultcode == RESULT_CANCELED) {
-                Toast.makeText(this, "Sign in cancelled!", Toast.LENGTH_SHORT).show();
-                finish();
+        @Override
+        protected void onPause () {
+            super.onPause();
+            if (mauthstatelistener != null) {
+                mfirebaseauth.removeAuthStateListener(mauthstatelistener);
             }
-        }
-            else if ( requestcode == RC_PHOTO_PICKER && resultcode == RESULT_OK ) {
-            Uri photo = data.getData();
-            StorageReference ref = mstoragereference.child(photo.getLastPathSegment());
-            ref.putFile(photo).addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                @Override
-                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                    Uri downloaduri = taskSnapshot.getDownloadUrl();
-                    FriendlyMessage friendlymessage = new FriendlyMessage(null, mUsername, downloaduri.toString());
-                    mdatabasereference.push().setValue(friendlymessage);
-
-                }
-
-            });
+            detachdatabasereader();
+            mMessageAdapter.clear();
         }
 
-            }
-
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if( mauthstatelistener != null ) {
-            mfirebaseauth.removeAuthStateListener(mauthstatelistener);
+        @Override
+        protected void onResume () {
+            super.onResume();
+            mfirebaseauth.addAuthStateListener(mauthstatelistener);
         }
-        detachdatabasereader();
-        mMessageAdapter.clear();
-    }
-    @Override
-    protected void onResume()
-    {
-        super.onResume();
-        mfirebaseauth.addAuthStateListener(mauthstatelistener);
-    }
-    protected void onSignedInInitialize(String username)
-    {
-       mUsername = username;
+
+    protected void onSignedInInitialize(String username) {
+        mUsername = username;
         databasereaderattached();
 
     }
-    protected void onSignedOutCleanup()
-    {  mUsername = ANONYMOUS;
+
+    protected void onSignedOutCleanup() {
+        mUsername = ANONYMOUS;
         mMessageAdapter.clear();
-       detachdatabasereader();
+        detachdatabasereader();
     }
-    protected void databasereaderattached()
-    {     if( mchildeventlistener == null ) {
-        mchildeventlistener = new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
-                mMessageAdapter.add(friendlyMessage);
-            }
 
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-            }
+    protected void databasereaderattached() {
+        if (mchildeventlistener == null) {
+            mchildeventlistener = new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                    FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
+                    mMessageAdapter.add(friendlyMessage);
+                }
 
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-            }
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                }
 
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-            }
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {
+                }
 
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-            }
-        };
-        mdatabasereference.addChildEventListener(mchildeventlistener);
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+                }
+            };
+            mdatabasereference.addChildEventListener(mchildeventlistener);
+        }
     }
-    }
+
     protected void detachdatabasereader() {
         if (mchildeventlistener != null)
             mdatabasereference.removeEventListener(mchildeventlistener);
         mchildeventlistener = null;
     }
 }
+
+
+
